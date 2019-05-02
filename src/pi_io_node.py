@@ -43,6 +43,10 @@ class PiGpioNode:
         self.__service = rospy.Service('gpio/output_cmd', gpio_output, self.OutputCommand)        
         self.__gpi_pub = rospy.Publisher('gpio/input_cmd', gpio_input, queue_size=3)
         
+        # Timers for button bounce
+        self.__input0_time = rospy.Time.now()
+        self.__input1_time = rospy.Time.now()
+        
     def OutputCommand(self, request):
         if(request.index == 0):
             gpo = self.__output0            
@@ -54,17 +58,30 @@ class PiGpioNode:
         return True
       
     def Input0HighCallback(self, channel):
-        input_cmd = gpio_input()
-        input_cmd.index = 0
-        input_cmd.value = True
-        self.__gpi_pub.publish(input_cmd)
+        # Check for button bounce
+        current_time = rospy.Time.now()
+        delta_time = (current_time - self.__input0_time).to_sec()    # Floating point seconds
+        
+        if delta_time > 0.200:       
+            input_cmd = gpio_input()
+            input_cmd.index = 0
+            input_cmd.value = True
+            self.__gpi_pub.publish(input_cmd)
+            
+        self.__input0_time = current_time
 
     def Input1HighCallback(self, channel):
-        input_cmd = gpio_input()
-        input_cmd.index = 1
-        input_cmd.value = True
-        self.__gpi_pub.publish(input_cmd)            
+        # Check for button bounce
+        current_time = rospy.Time.now()
+        delta_time = (current_time - self.__input1_time).to_sec()    # Floating point seconds
+        
+        if delta_time > 0.200:    
+            input_cmd = gpio_input()
+            input_cmd.index = 1
+            input_cmd.value = True
+            self.__gpi_pub.publish(input_cmd)            
     
+        self.__input1_time = current_time
 
 def main(args):
     rospy.init_node('pi_io_node', anonymous=False)
